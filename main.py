@@ -1,4 +1,3 @@
-# main.py
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -6,10 +5,17 @@ from sqlalchemy.orm import Session
 import models
 import database
 from fastapi.responses import RedirectResponse
+from prometheus_client import Counter, generate_latest
+from fastapi.responses import PlainTextResponse
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Prometheus Metrics
+USER_REGISTRATIONS = Counter("user_registrations", "Number of user registrations")
+PASSWORD_CHANGES = Counter("password_changes", "Number of password changes")
+USER_LOGINS = Counter("user_logins", "Number of user logins", ["username"])
 
 # Database dependency
 def get_db():
@@ -36,6 +42,8 @@ async def login(request: Request, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user or user.password != password:
         raise HTTPException(status_code=400, detail="Invalid credentials")
+    
+    USER_LOGINS.labels(username=username).inc()  # Increment login count for the user
     
     return RedirectResponse(url=f"/welcome/{username}", status_code=303)
 
@@ -67,6 +75,8 @@ async def register(request: Request, db: Session = Depends(get_db)):
     user = models.User(username=username, email=email, password=password)
     db.add(user)
     db.commit()
+    
+    USER_REGISTRATIONS.inc()  # Increment registration count
     
     return RedirectResponse(url="/login", status_code=303)
 
@@ -106,4 +116,10 @@ async def reset_password(request: Request, db: Session = Depends(get_db)):
     user.password = new_password
     db.commit()
     
+    PASSWORD_CHANGES.inc()  # Increment password change count
+    
     return RedirectResponse(url="/login", status_code=303)
+
+@app.get("/metrics", response_class=PlainTextResponse)
+async def metrics():
+    return generate_latest()

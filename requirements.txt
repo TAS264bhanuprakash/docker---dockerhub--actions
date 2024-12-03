@@ -5,3 +5,4 @@ sqlalchemy==1.4.23
 python-multipart==0.0.5
 jinja2==3.0.1
 aiofiles==0.7.0
+prometheus-client==0.16.0
