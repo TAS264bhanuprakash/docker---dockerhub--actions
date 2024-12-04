@@ -123,3 +123,19 @@ async def reset_password(request: Request, db: Session = Depends(get_db)):
 @app.get("/metrics", response_class=PlainTextResponse)
 async def metrics():
     return generate_latest()
+
+@app.get("/data/users")
+async def get_all_users(db: Session = Depends(get_db)):
+    """Fetch all registered users with their details."""
+    users = db.query(models.User).all()  # Fetch all users from the database
+    user_list = [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "password": user.password  # Optional: Include if necessary
+        }
+        for user in users
+    ]
+    return {"users": user_list}
+
