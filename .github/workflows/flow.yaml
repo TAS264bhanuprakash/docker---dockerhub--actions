@@ -13,6 +13,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    - name: Verify Docker Username Secret
+      run: |
+        if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+          echo "DOCKER_USERNAME secret is not set."
+        else
+          echo "DOCKER_USERNAME secret is set."
+        fi
+
+    - name: Verify Docker Password Secret
+      run: |
+        if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+          echo "DOCKER_PASSWORD secret is not set."
+        else
+          echo "DOCKER_PASSWORD secret is set."
+        fi
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
 
