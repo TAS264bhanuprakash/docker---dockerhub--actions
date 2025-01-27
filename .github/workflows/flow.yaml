@@ -46,7 +46,7 @@ jobs:
     - name: Save Docker image as an artifact
       uses: actions/upload-artifact@v3
       with:
-        name: my-django-app:latest
+        name: my-django-app
         path: .  # Ensure this path is correct, pointing to the built Docker image
 
   push:
@@ -57,7 +57,7 @@ jobs:
     - name: Download Docker image artifact
       uses: actions/download-artifact@v3
       with:
-        name: my-django-app:latest
+        name: my-django-app
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
@@ -66,6 +66,6 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Push the Docker image
-      run: |
-        docker tag my-django-app:latest ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
+      run: 
+        docker tag my-django-app ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
