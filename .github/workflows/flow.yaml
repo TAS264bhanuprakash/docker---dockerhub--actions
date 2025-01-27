@@ -41,7 +41,7 @@ jobs:
     - name: Build and tag the Docker image
       run: |
         docker build -t my-django-app:latest .
-        echo "IMAGE_NAME=my-django-app:latest" >> $GITHUB_ENV
+       
 
     - name: Save Docker image as an artifact
       uses: actions/upload-artifact@v3
@@ -66,7 +66,6 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Push the Docker image
-      run: |
-        IMAGE_NAME=$(cat $GITHUB_ENV | grep "IMAGE_NAME" | cut -d '=' -f 2)
+      run: 
         docker tag my-django-app ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
