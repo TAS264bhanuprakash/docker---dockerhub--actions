@@ -68,5 +68,5 @@ jobs:
     - name: Push the Docker image
       run: |
         IMAGE_NAME=$(cat $GITHUB_ENV | grep "IMAGE_NAME" | cut -d '=' -f 2)
-        docker tag $IMAGE_NAME ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
+        docker tag my-django-app ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
