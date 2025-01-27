@@ -50,6 +50,7 @@ jobs:
         path: ./my-django-app:latest
 
   push:
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
