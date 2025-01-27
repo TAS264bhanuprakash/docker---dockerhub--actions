@@ -1,10 +1,5 @@
-# init_db.py
-from database import engine
+from database import engine, Base
 import models
 
-def init_database():
-    models.Base.metadata.create_all(bind=engine)
-
-if __name__ == "__main__":
-    init_database()
-    print("Database initialized successfully!")
+# Create all tables
+Base.metadata.create_all(bind=engine)

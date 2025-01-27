@@ -1,30 +1,32 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse, PlainTextResponse
 from sqlalchemy.orm import Session
-import models
-import database
-from fastapi.responses import RedirectResponse
+from sqlalchemy import func
 from prometheus_client import Counter, generate_latest
-from fastapi.responses import PlainTextResponse
+from database import SessionLocal
+import models
 
+# FastAPI app setup
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Prometheus Metrics
-USER_REGISTRATIONS = Counter("user_registrations", "Number of user registrations")
-PASSWORD_CHANGES = Counter("password_changes", "Number of password changes")
+# Prometheus metrics
 USER_LOGINS = Counter("user_logins", "Number of user logins", ["username"])
+USER_REGISTRATIONS = Counter("user_registrations", "Number of user registrations")
+PASSWORD_CHANGES = Counter("password_changes", "Number of password changes", ["username"])
 
-# Database dependency
+# Dependency to get a DB session
 def get_db():
-    db = database.SessionLocal()
+    db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
+# Routes
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse("home.html", {"request": request})
@@ -43,8 +45,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
     if not user or user.password != password:
         raise HTTPException(status_code=400, detail="Invalid credentials")
     
-    USER_LOGINS.labels(username=username).inc()  # Increment login count for the user
-    
+    USER_LOGINS.labels(username=username).inc()  # Increment login metric
     return RedirectResponse(url=f"/welcome/{username}", status_code=303)
 
 @app.get("/register")
@@ -54,7 +55,7 @@ async def register_page(request: Request):
 @app.post("/register")
 async def register(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    username = form.get("username").strip()  # Remove whitespace
+    username = form.get("username").strip()
     email = form.get("email")
     password = form.get("password")
     confirm_password = form.get("confirm_password")
@@ -75,9 +76,7 @@ async def register(request: Request, db: Session = Depends(get_db)):
     user = models.User(username=username, email=email, password=password)
     db.add(user)
     db.commit()
-    
-    USER_REGISTRATIONS.inc()  # Increment registration count
-    
+    USER_REGISTRATIONS.inc()  # Increment registration metric
     return RedirectResponse(url="/login", status_code=303)
 
 @app.get("/welcome/{username}")
@@ -115,9 +114,7 @@ async def reset_password(request: Request, db: Session = Depends(get_db)):
     
     user.password = new_password
     db.commit()
-    
-    PASSWORD_CHANGES.inc()  # Increment password change count
-    
+    PASSWORD_CHANGES.labels(username=user.username).inc()  # Increment password change metric
     return RedirectResponse(url="/login", status_code=303)
 
 @app.get("/metrics", response_class=PlainTextResponse)
@@ -126,16 +123,42 @@ async def metrics():
 
 @app.get("/data/users")
 async def get_all_users(db: Session = Depends(get_db)):
-    """Fetch all registered users with their details."""
-    users = db.query(models.User).all()  # Fetch all users from the database
+    users = db.query(models.User).all()
     user_list = [
-        {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "password": user.password  # Optional: Include if necessary
-        }
+        {"id": user.id, "username": user.username, "email": user.email}
         for user in users
     ]
     return {"users": user_list}
 
+@app.get("/custom-metrics")
+async def custom_metrics(db: Session = Depends(get_db)):
+    total_registrations = db.query(models.User).count()
+
+    login_counts = db.query(
+        models.User.username,
+        func.sum(models.UserMetrics.logins).label("login_count")
+    ).join(models.UserMetrics, models.User.id == models.UserMetrics.user_id)\
+     .group_by(models.User.username).all()
+
+    password_changes = db.query(
+        models.User.username,
+        func.sum(models.UserMetrics.password_changes).label("password_change_count")
+    ).join(models.UserMetrics, models.User.id == models.UserMetrics.user_id)\
+     .group_by(models.User.username).all()
+
+    user_metrics = []
+    for username, login_count in login_counts:
+        password_change_count = next(
+            (change.password_change_count for change in password_changes if change.username == username),
+            0
+        )
+        user_metrics.append({
+            "username": username,
+            "logins": login_count,
+            "password_changes": password_change_count
+        })
+
+    return {
+        "total_registrations": total_registrations,
+        "user_metrics": user_metrics
+    }
