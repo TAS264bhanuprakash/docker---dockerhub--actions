@@ -66,6 +66,6 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Push the Docker image
-      run: 
+      run: |
         docker tag my-django-app:latest ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
