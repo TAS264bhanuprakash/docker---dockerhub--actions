@@ -47,7 +47,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: my-django-app
-        path: .  # Ensure this path is correct, pointing to the built Docker image
+        path: ./my-django-app:latest
 
   push:
     needs: build
@@ -65,10 +65,8 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Set IMAGE_NAME from artifact
-      run: echo "IMAGE_NAME=my-django-app:latest" >> $GITHUB_ENV
-
-    - name: Push the Docker image
+    - name: Tag and Push the Docker image
       run: |
-        docker tag my-django-app:latest ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
+        IMAGE_NAME=my-django-app:latest
+        docker tag $IMAGE_NAME ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
         docker push ${{ secrets.DOCKER_USERNAME }}/my-django-app:latest
